@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GarminConnectCoursePointFixer
 // @namespace    https://github.com/fjungclaus
-// @version      0.9.2
+// @version      0.9.3
 // @description  Fix "distance along the track" of course points for imported GPX tracks containing waypoints. Garmin always puts a distance of "0" into the FIT files, which breaks the course point list (roadbook feature) on Garmin Edge devices ...
 // @author       Frank Jungclaus, DL4XJ
 // @license      GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
@@ -112,6 +112,12 @@ function copyCoursePointNames() {
     }
 }
 
+function inputChange(idx,e) {
+    console.log("inputChange: " + idx + ":value=" + e.target.value);
+    var cb = $("input#gcpf_cp_name_cb_" + idx);
+    cb[0].checked = true;
+}
+
 function FixIt() {
     // var rElem = document.querySelector("body > div > div.main-body > div.content.page.Course_course__1uMsS > div");
     var rElem = getElementByXpath("/html/body/div/div[3]/div[2]/div");
@@ -143,7 +149,7 @@ function FixIt() {
                 dialogTxt += "<td>" + cp.createdDate + "<br>" + cp.modifiedDate + "</td>";
                 dialogTxt += "<td>" + cp.coursePointType + "</td>";
                 // dialogTxt += "<td>" + cp.name + "</td>";
-                dialogTxt += '<td>'
+                dialogTxt += '<td>';
                 dialogTxt += ' <input type="text" id="gcpf_cp_name_input_' + i + '" size="16" maxlength="15" autocomplete="off" spellcheck="false" value="' + cp.name + '"/>&nbsp;';
                 dialogTxt += ' <input title="Check to copy new name!" type="checkbox" id="gcpf_cp_name_cb_' + i + '"/>';
                 dialogTxt += '</td>';
@@ -173,6 +179,11 @@ function FixIt() {
                 }
             });
             $("#dbgDialog").dialog('open');
+
+            for (let i = 0; i < cps.length; i++) {
+                var inp = $("input#gcpf_cp_name_input_" + i);
+                inp[0].addEventListener('input', (evt) => inputChange(i,evt));
+            }
 
             // Prepend "F:" to course name to show this is a "fixed" variant of the course ...
             ecd.courseName = "F:" + ecd.courseName;
