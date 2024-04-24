@@ -1,13 +1,16 @@
 // ==UserScript==
 // @name         GarminConnectCoursePointFixer
 // @namespace    https://github.com/fjungclaus
-// @version      0.9.1
+// @version      0.9.2
 // @description  Fix "distance along the track" of course points for imported GPX tracks containing waypoints. Garmin always puts a distance of "0" into the FIT files, which breaks the course point list (roadbook feature) on Garmin Edge devices ...
 // @author       Frank Jungclaus, DL4XJ
 // @license      GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
 // @match        https://connect.garmin.com/modern/course/edit/*
 // @match        https://connect.garmin.com/modern/course/create-from-course/*
 // @match        https://connect.garmin.com/modern/course/create*
+// @require      https://code.jquery.com/jquery-3.6.0.min.js
+// @require      https://code.jquery.com/ui/1.12.1/jquery-ui.min.js
+// @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @run-at       document-idle
 // ==/UserScript==
@@ -18,6 +21,23 @@
 // - find out how to inform react about changed data to get the "save"-button enabled
 
 'use strict';
+
+var $ = window.$; // just to prevent warnings about for jquery "$ not defined" in tampermonkey editor
+var cps = null; // Quick'n'dirty: list of coursepoints to allow access this data in copyCoursePointNames()
+
+
+/* CSS */
+GM_addStyle(`
+table {
+  border-collapse: collapse;
+  width: 1200px;
+}
+td, th {
+  border: 1px dashed #000;
+  padding: 0.5rem;
+  text-align: left;
+}`);
+
 
 // FindReact taken from: https://stackoverflow.com/a/39165137/978756
 function FindReact(dom, traverseUp = 0) {
@@ -75,6 +95,22 @@ function getElementByXpath(path) {
   return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
 }
 
+function copyCoursePointNames() {
+    if (cps && cps.length) {
+        for(let i = 0; i < cps.length; i++) {
+            var cp = cps[i];
+            var cb = $("input#gcpf_cp_name_cb_" + i);
+            var newName = $("input#gcpf_cp_name_input_" + i).val().trim();
+
+            if (newName && newName.length) {
+                console.log(i + ': checked=' + cb[0].checked + ': current-name=' + cp.name + '/ new-name=' + newName);
+                if (cb[0].checked) {
+                    cp.name = newName;
+                }
+            }
+        }
+    }
+}
 
 function FixIt() {
     // var rElem = document.querySelector("body > div > div.main-body > div.content.page.Course_course__1uMsS > div");
@@ -88,18 +124,55 @@ function FixIt() {
     var rData = FindReact(rElem, 2);
     if (rData) {
         var ecd = rData.props.editableCourseDetails;
-        var cps = ecd.coursePoints;
+        cps = ecd.coursePoints;
         var gps = ecd.geoPoints;
 
         if (cps && cps.length) {
+            var dialogTxt;
+            dialogTxt += '<div id="dbgDialog" title="DEBUG: Garmin Connect Course-Point Fixer ...">';
+            dialogTxt += '<b>' + ecd.courseName + '</b> with ' + cps.length + ' course points:';
+            dialogTxt += '<table>';
+            dialogTxt += '<tr><th>#</th><th>Created<br>Modified</th><th>Type</th><th>Name (max. 15 chars!)</th><th>Lat [&deg;]</th><th>Lon [&deg;]</th><th>Orig. Elev. [m]</th><th>Corr. elev. [m]</th><th>Orig. Dist [m]</th><th>Corr. Dist. [m]</th><tr>';
+
             for(let i = 0; i < cps.length; i++) {
                 var cp = cps[i];
                 var nearest = FindNearest(gps, cp);
-                console.log("name=" + cp.name + ", lat=" + cp.lat + ", lon=" + cp.lon + ", dist=" + cp.distance.toFixed(1) + "m, fixed distance=" + nearest.distance.toFixed(1) + "m");
+                // console.log("name=" + cp.name + ", lat=" + cp.lat + ", lon=" + cp.lon + ", dist=" + cp.distance.toFixed(1) + "m, fixed distance=" + nearest.distance.toFixed(1) + "m");
+                dialogTxt += "<tr>";
+                dialogTxt += "<td>" + i + "</td>";
+                dialogTxt += "<td>" + cp.createdDate + "<br>" + cp.modifiedDate + "</td>";
+                dialogTxt += "<td>" + cp.coursePointType + "</td>";
+                // dialogTxt += "<td>" + cp.name + "</td>";
+                dialogTxt += '<td>'
+                dialogTxt += ' <input type="text" id="gcpf_cp_name_input_' + i + '" size="16" maxlength="15" autocomplete="off" spellcheck="false" value="' + cp.name + '"/>&nbsp;';
+                dialogTxt += ' <input title="Check to copy new name!" type="checkbox" id="gcpf_cp_name_cb_' + i + '"/>';
+                dialogTxt += '</td>';
+                dialogTxt += "<td>" + cp.lat.toFixed(8) + "</td>";
+                dialogTxt += "<td>" + cp.lon.toFixed(8) + "</td>";
+                dialogTxt += "<td>" + cp.elevation.toFixed(1) + "</td>";
+                dialogTxt += "<td>" + nearest.elevation.toFixed(1) + "</td>";
+                dialogTxt += "<td>" + cp.distance.toFixed(1) + "</td>";
+                dialogTxt += "<td>" + nearest.distance.toFixed(1) + "</td>";
+                dialogTxt += "</tr>";
                 // Fix it ...
                 cp.distance = nearest.distance;
                 cp.elevation = nearest.elevation;
             }
+
+            dialogTxt += '</table></div>';
+
+            $("body").append(dialogTxt);
+            $("#dbgDialog").dialog({
+                autoOpen: false,
+                maxHeight: 640,
+                width: 1260, maxWidth: 1260,
+                closeText: "Close the Debug Dialog and save changes!",
+                close: function() { copyCoursePointNames() },
+                buttons: {
+                    "Save+Close": function() { copyCoursePointNames(); $(this).dialog('close'); },
+                }
+            });
+            $("#dbgDialog").dialog('open');
 
             // Prepend "F:" to course name to show this is a "fixed" variant of the course ...
             ecd.courseName = "F:" + ecd.courseName;
