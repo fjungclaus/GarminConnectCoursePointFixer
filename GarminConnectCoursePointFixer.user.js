@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GarminConnectCoursePointFixer
 // @namespace    https://github.com/fjungclaus
-// @version      0.9.0
+// @version      0.9.1
 // @description  Fix "distance along the track" of course points for imported GPX tracks containing waypoints. Garmin always puts a distance of "0" into the FIT files, which breaks the course point list (roadbook feature) on Garmin Edge devices ...
 // @author       Frank Jungclaus, DL4XJ
 // @license      GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
@@ -71,11 +71,17 @@ function FindNearest(gps, cp) {
     return gps[minIdx];
 }
 
+function getElementByXpath(path) {
+  return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+}
+
+
 function FixIt() {
-    var rElem = document.querySelector("body > div > div.main-body > div.content.page.Course_course__3mkS5 > div");
+    // var rElem = document.querySelector("body > div > div.main-body > div.content.page.Course_course__1uMsS > div");
+    var rElem = getElementByXpath("/html/body/div/div[3]/div[2]/div");
 
     if (rElem == null) {
-        alert("Can't find element 'Course_course__3mkS5' :(");
+        alert("Can't find element 'Course_course__XXXXX' :(");
         return;
     }
 
@@ -89,7 +95,7 @@ function FixIt() {
             for(let i = 0; i < cps.length; i++) {
                 var cp = cps[i];
                 var nearest = FindNearest(gps, cp);
-                console.log("name=" + cp.name + ", lat=" + cp.lat + ", lon=" + cp.lon + ", dist=" + cp.distance + "m, fixed distance=" + nearest.distance.toFixed(1) + "m");
+                console.log("name=" + cp.name + ", lat=" + cp.lat + ", lon=" + cp.lon + ", dist=" + cp.distance.toFixed(1) + "m, fixed distance=" + nearest.distance.toFixed(1) + "m");
                 // Fix it ...
                 cp.distance = nearest.distance;
                 cp.elevation = nearest.elevation;
