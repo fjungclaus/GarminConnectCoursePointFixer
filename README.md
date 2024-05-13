@@ -2,6 +2,10 @@
 GarminConnect: Fix "distance along the track" of course points for imported GPX tracks containing waypoints. Garmin always puts a distance of "0" into the FIT files, which breaks the course point list (roadbook feature) on Garmin Edge devices ...
 
 # Changelog
+- 2024/05/13, 0.9.4
+  - No longer use GM_addStyle(). This no longer seems to exist for Greasemonkey
+  - Sucessfully tested with Firefox + Greasmonkey and Chrome + Tampermonkey
+
 - 2024/04/25, 0.9.3
   - Automatically set the checkbox if a course point name has been changed
   

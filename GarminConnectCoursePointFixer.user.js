@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GarminConnectCoursePointFixer
 // @namespace    https://github.com/fjungclaus
-// @version      0.9.3
+// @version      0.9.4
 // @description  Fix "distance along the track" of course points for imported GPX tracks containing waypoints. Garmin always puts a distance of "0" into the FIT files, which breaks the course point list (roadbook feature) on Garmin Edge devices ...
 // @author       Frank Jungclaus, DL4XJ
 // @license      GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
@@ -10,24 +10,23 @@
 // @match        https://connect.garmin.com/modern/course/create*
 // @require      https://code.jquery.com/jquery-3.6.0.min.js
 // @require      https://code.jquery.com/ui/1.12.1/jquery-ui.min.js
-// @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @run-at       document-idle
 // ==/UserScript==
 
 // todos
-// - spend an information window by means of jquery
+// - spend some screenshot about "how to use" for readme.md
 // - allow to export course points as csv
 // - find out how to inform react about changed data to get the "save"-button enabled
 
 'use strict';
 
+
 var $ = window.$; // just to prevent warnings about for jquery "$ not defined" in tampermonkey editor
 var cps = null; // Quick'n'dirty: list of coursepoints to allow access this data in copyCoursePointNames()
 
-
 /* CSS */
-GM_addStyle(`
+const CSS = `
 table {
   border-collapse: collapse;
   width: 1200px;
@@ -36,8 +35,19 @@ td, th {
   border: 1px dashed #000;
   padding: 0.5rem;
   text-align: left;
-}`);
+}`;
 
+// GM_addStyle() does no longer work with GreaseMonkey, so ...
+// see http://greasemonkey.win-start.de/patterns/add-css.html
+function addGlobalStyle(css) {
+    var head, style;
+    head = document.getElementsByTagName('head')[0];
+    if (!head) { return; }
+    style = document.createElement('style');
+    style.type = 'text/css';
+    style.innerHTML = css;
+    head.appendChild(style);
+}
 
 // FindReact taken from: https://stackoverflow.com/a/39165137/978756
 function FindReact(dom, traverseUp = 0) {
@@ -143,12 +153,10 @@ function FixIt() {
             for(let i = 0; i < cps.length; i++) {
                 var cp = cps[i];
                 var nearest = FindNearest(gps, cp);
-                // console.log("name=" + cp.name + ", lat=" + cp.lat + ", lon=" + cp.lon + ", dist=" + cp.distance.toFixed(1) + "m, fixed distance=" + nearest.distance.toFixed(1) + "m");
                 dialogTxt += "<tr>";
                 dialogTxt += "<td>" + i + "</td>";
                 dialogTxt += "<td>" + cp.createdDate + "<br>" + cp.modifiedDate + "</td>";
                 dialogTxt += "<td>" + cp.coursePointType + "</td>";
-                // dialogTxt += "<td>" + cp.name + "</td>";
                 dialogTxt += '<td>';
                 dialogTxt += ' <input type="text" id="gcpf_cp_name_input_' + i + '" size="16" maxlength="15" autocomplete="off" spellcheck="false" value="' + cp.name + '"/>&nbsp;';
                 dialogTxt += ' <input title="Check to copy new name!" type="checkbox" id="gcpf_cp_name_cb_' + i + '"/>';
@@ -197,5 +205,7 @@ function FixIt() {
 }
 
 (function() {
+    addGlobalStyle(CSS);
     GM_registerMenuCommand("Fix it", FixIt, "f");
+    console.log("*** Added GarminConnectCoursePointFixer to context menu ...");
 })();
