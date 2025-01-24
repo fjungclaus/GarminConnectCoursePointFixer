@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GarminConnectCoursePointFixer
 // @namespace    https://github.com/fjungclaus
-// @version      0.9.4
+// @version      0.9.5
 // @description  Fix "distance along the track" of course points for imported GPX tracks containing waypoints. Garmin always puts a distance of "0" into the FIT files, which breaks the course point list (roadbook feature) on Garmin Edge devices ...
 // @author       Frank Jungclaus, DL4XJ
 // @license      GPL-3.0-or-later; https://www.gnu.org/licenses/gpl-3.0.txt
@@ -128,16 +128,44 @@ function inputChange(idx,e) {
     cb[0].checked = true;
 }
 
-function FixIt() {
-    // var rElem = document.querySelector("body > div > div.main-body > div.content.page.Course_course__1uMsS > div");
-    var rElem = getElementByXpath("/html/body/div/div[3]/div[2]/div");
+function dbgGetXPath(element) {
+    let path = '';
+    while (element) {
+        const tagName = element.tagName.toLowerCase();
+        let index = 0;
+        let sibling = element.previousElementSibling;
 
-    if (rElem == null) {
-        alert("Can't find element 'Course_course__XXXXX' :(");
-        return;
+        while (sibling) {
+            if (sibling.tagName.toLowerCase() === tagName) {
+                index++;
+            }
+            sibling = sibling.previousElementSibling;
+        }
+
+        path = `${tagName}${index ? `[${index + 1}]` : ''}${path ? '/' + path : ''}`;
+        element = element.parentElement;
+    }
+    return '/' + path;
+}
+
+function FixIt() {
+    const mainBody = document.querySelector("body > div > div.main-body");
+    const mainBodyDivs = mainBody.querySelectorAll("div");
+    var rData = null;
+
+    // Poking around in the dark to find the react props we're interested in ...
+	for(var i = 0; i < mainBodyDivs.length; i++) {
+        var x = FindReact(mainBodyDivs[i], 2);
+     
+		if (x == null || x.props == null || x.props.editableCourseDetails == null) {
+            continue;
+        }
+        
+		console.log("Found editableCourseDetails @offset " + i + "/" + mainBodyDivs.length + ", XPath=" + dbgGetXPath(mainBodyDivs[i]));
+        rData = x;
+        break;
     }
 
-    var rData = FindReact(rElem, 2);
     if (rData) {
         var ecd = rData.props.editableCourseDetails;
         cps = ecd.coursePoints;
@@ -200,7 +228,7 @@ function FixIt() {
             alert("Sorry ... no course points ...");
         }
     } else {
-        alert("Can't access react data :(");
+        alert("Sorry ... No react props with editableCourseDetails found ... :(");
     }
 }
 
