@@ -156,11 +156,11 @@ function FixIt() {
     // Poking around in the dark to find the react props we're interested in ...
 	for(var i = 0; i < mainBodyDivs.length; i++) {
         var x = FindReact(mainBodyDivs[i], 2);
-     
+
 		if (x == null || x.props == null || x.props.editableCourseDetails == null) {
             continue;
         }
-        
+
 		console.log("Found editableCourseDetails @offset " + i + "/" + mainBodyDivs.length + ", XPath=" + dbgGetXPath(mainBodyDivs[i]));
         rData = x;
         break;
